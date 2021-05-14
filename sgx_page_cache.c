@@ -421,7 +421,7 @@ int sgx_add_epc_bank(resource_size_t start, unsigned long size, int bank)
 	struct sgx_epc_page *new_epc_page, *entry;
 	struct list_head *parser, *temp;
 
-	for (i = 0; i < size; i += PAGE_SIZE) {
+	for (i = 0; i < size; i += PAGE_SIZE) {//以页大小粒度  遍历EPC
 		new_epc_page = kzalloc(sizeof(*new_epc_page), GFP_KERNEL);
 		if (!new_epc_page)
 			goto err_freelist;
@@ -429,13 +429,13 @@ int sgx_add_epc_bank(resource_size_t start, unsigned long size, int bank)
 
 		spin_lock(&sgx_free_list_lock);
 		list_add_tail(&new_epc_page->list, &sgx_free_list);
-		sgx_nr_total_epc_pages++;
-		sgx_nr_free_pages++;
+		sgx_nr_total_epc_pages++;//EPC中页的个数
+		sgx_nr_free_pages++;     //EPC中空闲页的个数
 		spin_unlock(&sgx_free_list_lock);
 	}
 
 	return 0;
-err_freelist:
+err_freelist://发生错误，把已经申请到的资源释放掉
 	list_for_each_safe(parser, temp, &sgx_free_list) {
 		spin_lock(&sgx_free_list_lock);
 		entry = list_entry(parser, struct sgx_epc_page, list);
@@ -469,9 +469,9 @@ void sgx_page_cache_teardown(void)
 	}
 
 	spin_lock(&sgx_free_list_lock);
-	list_for_each_safe(parser, temp, &sgx_free_list) {
+	list_for_each_safe(parser, temp, &sgx_free_list) {//遍历空闲页链表
 		entry = list_entry(parser, struct sgx_epc_page, list);
-		list_del(&entry->list);
+		list_del(&entry->list);//从链表中删除该项
 		kfree(entry);
 	}
 	spin_unlock(&sgx_free_list_lock);

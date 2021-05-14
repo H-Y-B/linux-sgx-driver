@@ -246,11 +246,10 @@ static int sgx_dev_init(struct device *parent)
 
 	sgx_nr_epc_banks = i;
 
-	for (i = 0; i < sgx_nr_epc_banks; i++) {
+	for (i = 0; i < sgx_nr_epc_banks; i++) {//遍历sgx_epc_banks
 #ifdef CONFIG_X86_64
-		sgx_epc_banks[i].va = (unsigned long)
-			ioremap_cache(sgx_epc_banks[i].pa,
-				      sgx_epc_banks[i].size);
+		sgx_epc_banks[i].va = (unsigned long)ioremap_cache(sgx_epc_banks[i].pa,sgx_epc_banks[i].size);
+
 		if (!sgx_epc_banks[i].va) {
 			sgx_nr_epc_banks = i;
 			ret = -ENOMEM;
@@ -258,7 +257,9 @@ static int sgx_dev_init(struct device *parent)
 		}
 #endif
 		ret = sgx_add_epc_bank(sgx_epc_banks[i].pa,
-				       sgx_epc_banks[i].size, i);
+				               sgx_epc_banks[i].size, i);
+		//将EPC中每一个页串联到 sgx_free_list链表中
+
 		if (ret) {
 			sgx_nr_epc_banks = i + 1;
 			goto out_iounmap;
