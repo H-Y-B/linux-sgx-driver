@@ -206,7 +206,7 @@ static int sgx_dev_init(struct device *parent)
 
 	pr_info("intel_sgx: " DRV_DESCRIPTION " v" DRV_VERSION "\n");
 
-	cpuid_count(SGX_CPUID, SGX_CPUID_CAPABILITIES, &eax, &ebx, &ecx, &edx);
+	cpuid_count(SGX_CPUID, SGX_CPUID_CAPABILITIES, &eax, &ebx, &ecx, &edx);//读取CPU信息
 	/* Only allow misc bits supported by the driver. */
 	sgx_misc_reserved = ~ebx | SGX_MISC_RESERVED_MASK;
 #ifdef CONFIG_X86_64
@@ -215,8 +215,8 @@ static int sgx_dev_init(struct device *parent)
 	sgx_encl_size_max_32 = 1ULL << (edx & 0xFF);
 
 	if (boot_cpu_has(X86_FEATURE_OSXSAVE)) {
-		cpuid_count(SGX_CPUID, SGX_CPUID_ATTRIBUTES, &eax, &ebx, &ecx,
-			    &edx);
+		cpuid_count(SGX_CPUID, SGX_CPUID_ATTRIBUTES, &eax, &ebx, &ecx, &edx);//读取CPU信息
+
 		sgx_xfrm_mask = (((u64)edx) << 32) + (u64)ecx;
 
 		for (i = 2; i < 64; i++) {
@@ -226,20 +226,23 @@ static int sgx_dev_init(struct device *parent)
 		}
 	}
 
+	//                   8
 	for (i = 0; i < SGX_MAX_EPC_BANKS; i++) {
-		cpuid_count(SGX_CPUID, i + SGX_CPUID_EPC_BANKS, &eax, &ebx,
-			    &ecx, &edx);
+		cpuid_count(SGX_CPUID, i + SGX_CPUID_EPC_BANKS, &eax, &ebx,&ecx, &edx);//读取CPU信息
+
 		if (!(eax & 0xf))
 			break;
 
 		pa = ((u64)(ebx & 0xfffff) << 32) + (u64)(eax & 0xfffff000);
 		size = ((u64)(edx & 0xfffff) << 32) + (u64)(ecx & 0xfffff000);
 
-		dev_info(parent, "EPC bank 0x%lx-0x%lx\n", pa, pa + size);
+		dev_info(parent, "EPC bank 0x%lx-0x%lx\n", pa, pa + size);//EPC物理地址大小
 
 		sgx_epc_banks[i].pa = pa;
 		sgx_epc_banks[i].size = size;
 	}
+	//填充数组struct sgx_epc_bank sgx_epc_banks[8]完毕---------------------------------------------------
+
 
 	sgx_nr_epc_banks = i;
 
