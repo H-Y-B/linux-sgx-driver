@@ -80,6 +80,20 @@
 #define SGX_IOC_ENCLAVE_PAGE_REMOVE \
 	_IOW(SGX_MAGIC, 0x0d, unsigned long)
 
+/*
+·         _IOW  (魔数， 基数， 变量型)
+
+cmd的大小为 32位，共分 4 个域：
+     bit31~bit30   2位为 “区别读写” 区，作用是区分是读取命令还是写入命令。
+     bit29~bit15   14位为 "数据大小" 区，表示 ioctl() 中的 arg 变量传送的内存大小。
+     bit20~bit08   8位为 “魔数"(也称为"幻数")区，这个值用以与其它设备驱动程序的 ioctl 命令进行区别。
+     bit07~bit00   8位为 "区别序号" 区，是区分命令的命令顺序序号。
+ref link:https://www.cnblogs.com/muahao/p/8125139.html
+*/
+
+
+
+
 /* SGX leaf instruction return values */
 #define SGX_SUCCESS			0
 #define SGX_INVALID_SIG_STRUCT		1

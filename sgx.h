@@ -160,22 +160,26 @@ enum sgx_encl_flags {
 
 struct sgx_encl {
 	unsigned int flags;
+
+	//来自secs
 	uint64_t attributes;
 	uint64_t xfrm;
+
+
 	unsigned int secs_child_cnt;
 	struct mutex lock;
 	struct mm_struct *mm;
 	struct file *backing;
 	struct file *pcmd;
 	struct list_head load_list;
-	struct kref refcount;
+	struct kref refcount;//一个引用计数器
 	unsigned long base;
 	unsigned long size;
 	unsigned long ssaframesize;
 	struct list_head va_pages;
 	struct radix_tree_root page_tree;
 	struct list_head add_page_reqs;
-	struct work_struct add_page_work;
+	struct work_struct add_page_work;//内核工作队列
 	struct sgx_encl_page secs;
 	struct sgx_tgid_ctx *tgid_ctx;
 	struct list_head encl_list;

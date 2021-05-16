@@ -373,13 +373,12 @@ static int sgx_validate_secs(const struct sgx_secs *secs,
 	if (secs->base & (secs->size - 1))
 		return -EINVAL;
 
-	if (secs->attributes & SGX_ATTR_RESERVED_MASK ||
-	    secs->miscselect & sgx_misc_reserved)
+	if (secs->attributes & SGX_ATTR_RESERVED_MASK || secs->miscselect & sgx_misc_reserved)
 		return -EINVAL;
 
 	if (secs->attributes & SGX_ATTR_MODE64BIT) {
 #ifdef CONFIG_X86_64
-		if (secs->size > sgx_encl_size_max_64)
+		if (secs->size > sgx_encl_size_max_64)//创建的enclave大小大于规定的大小
 			return -EINVAL;
 #else
 		return -EINVAL;
@@ -440,9 +439,12 @@ static const struct mmu_notifier_ops sgx_mmu_notifier_ops = {
 	.release	= sgx_mmu_notifier_release,
 };
 
-int sgx_init_page(struct sgx_encl *encl, struct sgx_encl_page *entry,
-		  unsigned long addr, unsigned int alloc_flags,
-		  struct sgx_epc_page **va_src, bool already_locked)
+int sgx_init_page(struct sgx_encl *encl, 
+			      struct sgx_encl_page *entry,
+		  		  unsigned long addr, 
+				  unsigned int alloc_flags,
+		          struct sgx_epc_page **va_src, 
+				  bool already_locked)
 {
 	struct sgx_va_page *va_page;
 	struct sgx_epc_page *epc_page = NULL;
@@ -501,7 +503,7 @@ int sgx_init_page(struct sgx_encl *encl, struct sgx_encl_page *entry,
 		list_add(&va_page->list, &encl->va_pages);
 		if (!already_locked)
 			mutex_unlock(&encl->lock);
-	}
+	}//end if
 
 	entry->va_page = va_page;
 	entry->va_offset = va_offset;
@@ -534,8 +536,7 @@ static struct sgx_encl *sgx_encl_alloc(struct sgx_secs *secs)
 	if (sgx_validate_secs(secs, ssaframesize))
 		return ERR_PTR(-EINVAL);
 
-	backing = shmem_file_setup("[dev/sgx]", secs->size + PAGE_SIZE,
-				   VM_NORESERVE);
+	backing = shmem_file_setup("[dev/sgx]", secs->size + PAGE_SIZE, VM_NORESERVE);
 	if (IS_ERR(backing))
 		return (void *)backing;
 
@@ -554,9 +555,9 @@ static struct sgx_encl *sgx_encl_alloc(struct sgx_secs *secs)
 	}
 
 	encl->attributes = secs->attributes;
-	encl->xfrm = secs->xfrm;
+	encl->xfrm       = secs->xfrm;
 
-	kref_init(&encl->refcount);
+	kref_init(&encl->refcount);           //初始化一个引用计数器
 	INIT_LIST_HEAD(&encl->add_page_reqs);
 	INIT_LIST_HEAD(&encl->va_pages);
 	INIT_RADIX_TREE(&encl->page_tree, GFP_KERNEL);
@@ -601,7 +602,7 @@ int sgx_encl_create(struct sgx_secs *secs)
 	if (IS_ERR(encl))
 		return PTR_ERR(encl);
 
-	secs_epc = sgx_alloc_page(0);
+	secs_epc = sgx_alloc_page(0);//从sgx_free_list链表 中 找出一项
 	if (IS_ERR(secs_epc)) {
 		ret = PTR_ERR(secs_epc);
 		goto out;
@@ -613,8 +614,7 @@ int sgx_encl_create(struct sgx_secs *secs)
 	if (ret)
 		goto out;
 
-	ret = sgx_init_page(encl, &encl->secs, encl->base + encl->size, 0,
-			    NULL, false);
+	ret = sgx_init_page(encl, &encl->secs, encl->base + encl->size, 0, NULL, false);
 	if (ret)
 		goto out;
 
@@ -689,6 +689,8 @@ out_locked:
 out:
 	if (encl)
 		kref_put(&encl->refcount, sgx_encl_release);
+	//kref_put递减kref的计数值，如果计数值减为0，说明kref所指向的结构生命周期结束，会执行release释放函数。
+
 	return ret;
 }
 

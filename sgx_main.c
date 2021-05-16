@@ -270,8 +270,7 @@ static int sgx_dev_init(struct device *parent)
 	if (ret)
 		goto out_iounmap;
 
-	sgx_add_page_wq = alloc_workqueue("intel_sgx-add-page-wq",
-					  WQ_UNBOUND | WQ_FREEZABLE, 1);
+	sgx_add_page_wq = alloc_workqueue("intel_sgx-add-page-wq", WQ_UNBOUND | WQ_FREEZABLE, 1);
 	if (!sgx_add_page_wq) {
 		pr_err("intel_sgx: alloc_workqueue() failed\n");
 		ret = -ENOMEM;
@@ -304,7 +303,7 @@ out_iounmap:
 }
 
 static atomic_t sgx_init_flag = ATOMIC_INIT(0);
-static int sgx_drv_probe(struct platform_device *pdev)
+static int sgx_drv_probe(struct platform_device *pdev)//驱动入口
 {
 	unsigned int eax, ebx, ecx, edx;
 	unsigned long fc;

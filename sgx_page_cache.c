@@ -398,14 +398,17 @@ out:
 static int ksgxswapd(void *p)
 {
 	set_freezable();
+	//清除当前线程标志flags中的PF_NOFREEZE位，表示当前线程能进入挂起或休眠状态
 
-	while (!kthread_should_stop()) {
+	while (!kthread_should_stop()) {//当前线程收到stop请求
 		if (try_to_freeze())
 			continue;
 
 		wait_event_freezable(ksgxswapd_waitq,
-				     kthread_should_stop() ||
-				     sgx_nr_free_pages < sgx_nr_high_pages);
+				     		 kthread_should_stop() || sgx_nr_free_pages < sgx_nr_high_pages
+							);
+		/*
+		*/
 
 		if (sgx_nr_free_pages < sgx_nr_high_pages)
 			sgx_swap_pages(SGX_NR_SWAP_CLUSTER_MAX);
@@ -450,9 +453,12 @@ int sgx_page_cache_init(void)
 {
 	struct task_struct *tmp;
 
-	sgx_nr_high_pages = 2 * sgx_nr_low_pages;
+	sgx_nr_high_pages = 2 * sgx_nr_low_pages;  
+	//64                       32 
 
 	tmp = kthread_run(ksgxswapd, NULL, "ksgxswapd");
+	//创建并启动内核线程
+
 	if (!IS_ERR(tmp))
 		ksgxswapd_tsk = tmp;
 	return PTR_ERR_OR_ZERO(tmp);
@@ -464,7 +470,7 @@ void sgx_page_cache_teardown(void)
 	struct list_head *parser, *temp;
 
 	if (ksgxswapd_tsk) {
-		kthread_stop(ksgxswapd_tsk);
+		kthread_stop(ksgxswapd_tsk);//停止该线程
 		ksgxswapd_tsk = NULL;
 	}
 

@@ -87,8 +87,10 @@ struct sgx_secs {
 	uint32_t ssaframesize;
 	uint32_t miscselect;
 	uint8_t reserved1[SGX_SECS_RESERVED1_SIZE];
-	uint64_t attributes;
-	uint64_t xfrm;
+
+	uint64_t attributes;//[63:0]
+	uint64_t xfrm;      //xsave feature request mask
+
 	uint32_t mrenclave[8];
 	uint8_t reserved2[SGX_SECS_RESERVED2_SIZE];
 	uint32_t mrsigner[8];

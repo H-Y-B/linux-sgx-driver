@@ -120,10 +120,9 @@ int sgx_get_encl(unsigned long addr, struct sgx_encl **encl)
  * 0 on success,
  * system error on failure
  */
-static long sgx_ioc_enclave_create(struct file *filep, unsigned int cmd,
-				   unsigned long arg)
+static long sgx_ioc_enclave_create(struct file *filep, unsigned int cmd, unsigned long arg)
 {
-	struct sgx_enclave_create *createp = (struct sgx_enclave_create *)arg;
+	struct sgx_enclave_create *createp = (struct sgx_enclave_create *)arg;  //address for the SECS page data
 	void __user *src = (void __user *)createp->src;
 	struct sgx_secs *secs;
 	int ret;
