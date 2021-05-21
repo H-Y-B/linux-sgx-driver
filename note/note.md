@@ -7,3 +7,8 @@
  # driver
 
  * [Linux内核中经典链表 list_head 常见使用方法解析](https://blog.csdn.net/wanshilun/article/details/79747710)
+
+
+ # others
+
+ * [Open Enclave SDK](https://github.com/openenclave/openenclave)
