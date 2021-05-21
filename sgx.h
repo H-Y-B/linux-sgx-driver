@@ -169,8 +169,10 @@ struct sgx_encl {
 	unsigned int secs_child_cnt;
 	struct mutex lock;
 	struct mm_struct *mm;
+
 	struct file *backing;
 	struct file *pcmd;
+	
 	struct list_head load_list;
 	struct kref refcount;//一个引用计数器
 	unsigned long base;

@@ -98,7 +98,7 @@ struct sgx_add_page_req {
  * -EINVAL if an enclave was not found,
  * -ENOENT if the enclave has not been created yet
  */
-int sgx_encl_find(struct mm_struct *mm, unsigned long addr,
+				  unsigned long addr,
 		  struct vm_area_struct **vma)
 {
 	struct vm_area_struct *result;
@@ -188,7 +188,7 @@ static int sgx_measure(struct sgx_epc_page *secs_page,
 			continue;
 
 		secs = sgx_get_page(secs_page);
-		epc = sgx_get_page(epc_page);
+		epc  = sgx_get_page( epc_page);
 
 		ret = __eextend(secs, (void *)((unsigned long)epc + i));
 
@@ -209,8 +209,9 @@ static int sgx_eadd(struct sgx_epc_page *secs_page,
 	void *epc_page_vaddr;
 	int ret;
 
-	pginfo.srcpge = (unsigned long)kmap_atomic(backing);
-	pginfo.secs = (unsigned long)sgx_get_page(secs_page);
+	pginfo.srcpge  = (unsigned long)kmap_atomic(backing);
+	pginfo.secs    = (unsigned long)sgx_get_page(secs_page);
+
 	epc_page_vaddr = sgx_get_page(epc_page);
 
 	pginfo.linaddr = linaddr;
@@ -256,8 +257,11 @@ static bool sgx_process_add_page_req(struct sgx_add_page_req *req,
 		return false;
 	}
 
-	ret = sgx_eadd(encl->secs.epc_page, epc_page, encl_page->addr,
-		       &req->secinfo, backing);
+	ret = sgx_eadd(encl->secs.epc_page,  //
+				   epc_page,             //
+				   encl_page->addr,      //
+		           &req->secinfo, 
+				   backing);
 
 	sgx_put_backing(backing, 0);
 	if (ret) {
@@ -566,12 +570,12 @@ static struct sgx_encl *sgx_encl_alloc(struct sgx_secs *secs)
 	mutex_init(&encl->lock);
 	INIT_WORK(&encl->add_page_work, sgx_add_page_worker);
 
-	encl->mm = current->mm;
-	encl->base = secs->base;
-	encl->size = secs->size;
+	encl->mm           = current->mm;
+	encl->base         = secs->base;
+	encl->size         = secs->size;
 	encl->ssaframesize = secs->ssaframesize;
-	encl->backing = backing;
-	encl->pcmd = pcmd;
+	encl->backing      = backing;
+	encl->pcmd         = pcmd;
 
 	return encl;
 }
@@ -880,8 +884,11 @@ out:
  * 0 on success,
  * system error on failure
  */
-int sgx_encl_add_page(struct sgx_encl *encl, unsigned long addr, void *data,
-		      struct sgx_secinfo *secinfo, unsigned int mrmask)
+int sgx_encl_add_page(struct sgx_encl *encl, 
+					  unsigned long addr, 
+					  void *data,
+		              struct sgx_secinfo *secinfo, 
+					  unsigned int mrmask)
 {
 	struct sgx_encl_page *page;
 	int ret;
@@ -898,7 +905,8 @@ int sgx_encl_add_page(struct sgx_encl *encl, unsigned long addr, void *data,
 	return ret;
 }
 
-static int sgx_einit(struct sgx_encl *encl, struct sgx_sigstruct *sigstruct,
+static int sgx_einit(struct sgx_encl *encl, 
+                     struct sgx_sigstruct *sigstruct,
 		     struct sgx_einittoken *token)
 {
 	struct sgx_epc_page *secs_epc = encl->secs.epc_page;
@@ -927,7 +935,8 @@ static int sgx_einit(struct sgx_encl *encl, struct sgx_sigstruct *sigstruct,
  * -FAULT on a CPU exception during EINIT,
  * SGX error code
  */
-int sgx_encl_init(struct sgx_encl *encl, struct sgx_sigstruct *sigstruct,
+int sgx_encl_init(struct sgx_encl *encl, 
+				  struct sgx_sigstruct *sigstruct,
 		  struct sgx_einittoken *token)
 {
 	int ret;

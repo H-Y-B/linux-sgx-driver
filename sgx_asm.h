@@ -185,8 +185,7 @@ static inline int __etrack(void *epc)
 	return __encls_ret(ETRACK, rbx, epc, rdx);
 }
 
-static inline int __eldu(unsigned long rbx, unsigned long rcx,
-			 unsigned long rdx)
+static inline int __eldu(unsigned long rbx, unsigned long rcx, unsigned long rdx)
 {
 	return __encls_ret(ELDU, rbx, rcx, rdx);
 }

@@ -157,7 +157,8 @@ static long sgx_ioc_enclave_create(struct file *filep, unsigned int cmd, unsigne
  * 0 on success,
  * system error on failure
  */
-static long sgx_ioc_enclave_add_page(struct file *filep, unsigned int cmd,
+static long sgx_ioc_enclave_add_page(struct file *filep, 
+									 unsigned int cmd,
 				     unsigned long arg)
 {
 	struct sgx_enclave_add_page *addp = (void *)arg;
@@ -172,8 +173,7 @@ static long sgx_ioc_enclave_add_page(struct file *filep, unsigned int cmd,
 	if (ret)
 		return ret;
 
-	if (copy_from_user(&secinfo, (void __user *)secinfop,
-			   sizeof(secinfo))) {
+	if (copy_from_user(&secinfo, (void __user *)secinfop, sizeof(secinfo))) {
 		kref_put(&encl->refcount, sgx_encl_release);
 		return -EFAULT;
 	}
@@ -214,13 +214,16 @@ out:
  * 0 on success,
  * system error on failure
  */
-static long sgx_ioc_enclave_init(struct file *filep, unsigned int cmd,
+static long sgx_ioc_enclave_init(struct file *filep, 
+                                 unsigned int cmd,
 				 unsigned long arg)
 {
 	struct sgx_enclave_init *initp = (struct sgx_enclave_init *)arg;
-	unsigned long sigstructp = (unsigned long)initp->sigstruct;
+	unsigned long sigstructp  = (unsigned long)initp->sigstruct;
 	unsigned long einittokenp = (unsigned long)initp->einittoken;
-	unsigned long encl_id = initp->addr;
+	unsigned long encl_id     = initp->addr;
+
+
 	struct sgx_sigstruct *sigstruct;
 	struct sgx_einittoken *einittoken;
 	struct sgx_encl *encl;
@@ -231,17 +234,14 @@ static long sgx_ioc_enclave_init(struct file *filep, unsigned int cmd,
 	if (!initp_page)
 		return -ENOMEM;
 
-	sigstruct = kmap(initp_page);
-	einittoken = (struct sgx_einittoken *)
-		((unsigned long)sigstruct + PAGE_SIZE / 2);
+	sigstruct  = kmap(initp_page);
+	einittoken = (struct sgx_einittoken *)((unsigned long)sigstruct + PAGE_SIZE / 2);
 
-	ret = copy_from_user(sigstruct, (void __user *)sigstructp,
-			     sizeof(*sigstruct));
+	ret = copy_from_user(sigstruct, (void __user *)sigstructp, sizeof(*sigstruct));
 	if (ret)
 		goto out;
 
-	ret = copy_from_user(einittoken, (void __user *)einittokenp,
-			     sizeof(*einittoken));
+	ret = copy_from_user(einittoken, (void __user *)einittokenp, sizeof(*einittoken));
 	if (ret)
 		goto out;
 
