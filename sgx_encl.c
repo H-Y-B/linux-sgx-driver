@@ -98,8 +98,9 @@ struct sgx_add_page_req {
  * -EINVAL if an enclave was not found,
  * -ENOENT if the enclave has not been created yet
  */
+int sgx_encl_find(struct mm_struct *mm, 
 				  unsigned long addr,
-		  struct vm_area_struct **vma)
+		  		  struct vm_area_struct **vma)
 {
 	struct vm_area_struct *result;
 	struct sgx_encl *encl;
@@ -183,6 +184,7 @@ static int sgx_measure(struct sgx_epc_page *secs_page,
 	int ret = 0;
 	int i, j;
 
+	//                      16（16*256B=4KB）
 	for (i = 0, j = 1; i < 0x1000 && !ret; i += 0x100, j <<= 1) {
 		if (!(j & mrmask))
 			continue;
@@ -212,6 +214,7 @@ static int sgx_eadd(struct sgx_epc_page *secs_page,
 	pginfo.srcpge  = (unsigned long)kmap_atomic(backing);
 	pginfo.secs    = (unsigned long)sgx_get_page(secs_page);
 
+	//EPC中的目的地址（）
 	epc_page_vaddr = sgx_get_page(epc_page);
 
 	pginfo.linaddr = linaddr;
@@ -251,6 +254,7 @@ static bool sgx_process_add_page_req(struct sgx_add_page_req *req,
 		return false;
 	}
 
+	//                              虚拟地址       物理地址
         ret = sgx_vm_insert_pfn(vma, encl_page->addr, epc_page->pa);
         if (ret != VM_FAULT_NOPAGE) {
 		sgx_put_backing(backing, 0);
@@ -272,6 +276,7 @@ static bool sgx_process_add_page_req(struct sgx_add_page_req *req,
 
 	encl->secs_child_cnt++;
 
+	//度量
 	ret = sgx_measure(encl->secs.epc_page, epc_page, req->mrmask);
 	if (ret) {
 		sgx_warn(encl, "EEXTEND returned %d\n", ret);
@@ -540,12 +545,11 @@ static struct sgx_encl *sgx_encl_alloc(struct sgx_secs *secs)
 	if (sgx_validate_secs(secs, ssaframesize))
 		return ERR_PTR(-EINVAL);
 
-	backing = shmem_file_setup("[dev/sgx]", secs->size + PAGE_SIZE, VM_NORESERVE);
+	backing = shmem_file_setup("[dev/sgx]", secs->size + PAGE_SIZE, VM_NORESERVE);//在linux“内存文件系统”里创建一个文件节点
 	if (IS_ERR(backing))
 		return (void *)backing;
 
-	pcmd = shmem_file_setup("[dev/sgx]", (secs->size + PAGE_SIZE) >> 5,
-				VM_NORESERVE);
+	pcmd = shmem_file_setup("[dev/sgx]", (secs->size + PAGE_SIZE) >> 5,VM_NORESERVE);//在linux“内存文件系统”里创建一个文件节点
 	if (IS_ERR(pcmd)) {
 		fput(backing);
 		return (void *)pcmd;
@@ -907,7 +911,7 @@ int sgx_encl_add_page(struct sgx_encl *encl,
 
 static int sgx_einit(struct sgx_encl *encl, 
                      struct sgx_sigstruct *sigstruct,
-		     struct sgx_einittoken *token)
+		     		 struct sgx_einittoken *token)
 {
 	struct sgx_epc_page *secs_epc = encl->secs.epc_page;
 	void *secs_va;
@@ -937,7 +941,7 @@ static int sgx_einit(struct sgx_encl *encl,
  */
 int sgx_encl_init(struct sgx_encl *encl, 
 				  struct sgx_sigstruct *sigstruct,
-		  struct sgx_einittoken *token)
+		  		  struct sgx_einittoken *token)
 {
 	int ret;
 	int i;

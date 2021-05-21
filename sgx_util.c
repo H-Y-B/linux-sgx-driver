@@ -93,8 +93,8 @@ int sgx_vm_insert_pfn(struct vm_area_struct *vma, unsigned long addr, resource_s
 }
 
 struct page *sgx_get_backing(struct sgx_encl *encl,
-			     struct sgx_encl_page *entry,
-			     bool pcmd)
+			     			 struct sgx_encl_page *entry,
+			     			 bool pcmd)
 {
 	struct inode *inode;
 	struct address_space *mapping;
@@ -170,8 +170,8 @@ void sgx_flush_cpus(struct sgx_encl *encl)
 }
 
 int sgx_eldu(struct sgx_encl *encl,
-	     struct sgx_encl_page *encl_page,
-	     struct sgx_epc_page *epc_page,
+	     struct sgx_encl_page *encl_page,//EPC外的源页
+	     struct sgx_epc_page *epc_page,  //EPC中的目标页
 	     bool is_secs)
 {
 	struct page *backing;
@@ -205,16 +205,15 @@ int sgx_eldu(struct sgx_encl *encl,
 		secs_ptr = sgx_get_page(encl->secs.epc_page);
 
 	epc_ptr = sgx_get_page(epc_page);
-	va_ptr = sgx_get_page(encl_page->va_page->epc_page);
-	pginfo.srcpge = (unsigned long)kmap_atomic(backing);
-	pginfo.pcmd = (unsigned long)kmap_atomic(pcmd) + pcmd_offset;
-	pginfo.linaddr = is_secs ? 0 : encl_page->addr;
-	pginfo.secs = (unsigned long)secs_ptr;
+	va_ptr  = sgx_get_page(encl_page->va_page->epc_page);
+	pginfo.srcpge = (unsigned long)kmap_atomic(backing);//非EPC中的页 源地址
+	pginfo.pcmd   = (unsigned long)kmap_atomic(pcmd) + pcmd_offset;
+	pginfo.linaddr= is_secs ? 0 : encl_page->addr;
+	pginfo.secs   = (unsigned long)secs_ptr;
 
 	ret = __eldu((unsigned long)&pginfo,
-		     (unsigned long)epc_ptr,
-		     (unsigned long)va_ptr +
-		     encl_page->va_offset);
+		     	 (unsigned long)epc_ptr,      //EPC目标虚拟地址
+		     	 (unsigned long)va_ptr +encl_page->va_offset);
 	if (ret) {
 		sgx_err(encl, "ELDU returned %d\n", ret);
 		ret = -EFAULT;
@@ -322,7 +321,7 @@ static struct sgx_encl_page *sgx_do_fault(struct vm_area_struct *vma,
 		secs_epc_page = NULL;
 	}
 
-	rc = sgx_eldu(encl, entry, epc_page, false /* is_secs */);
+	rc = sgx_eldu(encl, entry, epc_page, false /* is_secs */);//加载页
 	if (rc)
 		goto out;
 

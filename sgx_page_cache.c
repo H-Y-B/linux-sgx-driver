@@ -260,6 +260,7 @@ static int __sgx_ewb(struct sgx_encl *encl,
 		return ret;
 	}
 
+	//MAC
 	pcmd = sgx_get_backing(encl, encl_page, true);
 	if (IS_ERR(pcmd)) {
 		ret = PTR_ERR(pcmd);
@@ -580,10 +581,10 @@ void *sgx_get_page(struct sgx_epc_page *entry)
 #ifdef CONFIG_X86_32
 	return kmap_atomic_pfn(PFN_DOWN(entry->pa));
 #else
-	int i = ((entry->pa) & ~PAGE_MASK);
+	int i = ((entry->pa) & ~PAGE_MASK);//页内偏移
 
-	return (void *)(sgx_epc_banks[i].va +
-		((entry->pa & PAGE_MASK) - sgx_epc_banks[i].pa));
+	return (void *)(sgx_epc_banks[i].va + ((entry->pa & PAGE_MASK) - sgx_epc_banks[i].pa));
+	//									  ( 物理页号页号-)		
 #endif
 }
 

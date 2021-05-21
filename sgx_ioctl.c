@@ -159,7 +159,7 @@ static long sgx_ioc_enclave_create(struct file *filep, unsigned int cmd, unsigne
  */
 static long sgx_ioc_enclave_add_page(struct file *filep, 
 									 unsigned int cmd,
-				     unsigned long arg)
+				     				 unsigned long arg)
 {
 	struct sgx_enclave_add_page *addp = (void *)arg;
 	unsigned long secinfop = (unsigned long)addp->secinfo;
@@ -216,7 +216,7 @@ out:
  */
 static long sgx_ioc_enclave_init(struct file *filep, 
                                  unsigned int cmd,
-				 unsigned long arg)
+				 				 unsigned long arg)
 {
 	struct sgx_enclave_init *initp = (struct sgx_enclave_init *)arg;
 	unsigned long sigstructp  = (unsigned long)initp->sigstruct;
@@ -230,6 +230,8 @@ static long sgx_ioc_enclave_init(struct file *filep,
 	struct page *initp_page;
 	int ret;
 
+
+	//在内核空间 申请一个页存放  sigstruct 和 einittoken
 	initp_page = alloc_page(GFP_HIGHUSER);
 	if (!initp_page)
 		return -ENOMEM;
@@ -244,6 +246,11 @@ static long sgx_ioc_enclave_init(struct file *filep,
 	ret = copy_from_user(einittoken, (void __user *)einittokenp, sizeof(*einittoken));
 	if (ret)
 		goto out;
+	//在内核空间 申请一个页存放  sigstruct 和 einittoken
+
+
+
+
 
 	ret = sgx_get_encl(encl_id, &encl);
 	if (ret)
