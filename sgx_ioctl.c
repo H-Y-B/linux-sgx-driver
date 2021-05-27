@@ -190,7 +190,11 @@ static long sgx_ioc_enclave_add_page(struct file *filep,
 	if (ret)
 		goto out;
 
-	ret = sgx_encl_add_page(encl, addp->addr, data, &secinfo, addp->mrmask);
+	ret = sgx_encl_add_page(encl, 
+							addp->addr,//enclave虚拟空间中的地址
+							data,      //enclave 页数据
+							&secinfo, 
+							addp->mrmask);
 	if (ret)
 		goto out;
 

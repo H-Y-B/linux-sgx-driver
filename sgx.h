@@ -87,7 +87,7 @@
 #endif
 
 struct sgx_epc_page {
-	resource_size_t	pa;
+	resource_size_t	pa;     //EPC真实的物理地址
 	struct list_head list;
 	struct sgx_encl_page *encl_page;
 };
@@ -136,7 +136,7 @@ enum sgx_encl_page_flags {
 };
 
 struct sgx_encl_page {
-	unsigned long addr;
+	unsigned long addr;  //enclave虚拟地址空间的地址
 	unsigned int flags;
 	struct sgx_epc_page *epc_page;
 	struct sgx_va_page *va_page;

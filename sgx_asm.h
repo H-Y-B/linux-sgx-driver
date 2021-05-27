@@ -146,8 +146,7 @@ static inline int __eadd(struct sgx_pageinfo *pginfo, void *epc)
 	return __encls(EADD, pginfo, epc, "d"(0));
 }
 
-static inline int __einit(void *sigstruct, struct sgx_einittoken *einittoken,
-			  void *secs)
+static inline int __einit(void *sigstruct, struct sgx_einittoken *einittoken, void *secs)
 {
 	return __encls_ret(EINIT, sigstruct, secs, einittoken);
 }

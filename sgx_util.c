@@ -211,8 +211,8 @@ int sgx_eldu(struct sgx_encl *encl,
 	pginfo.linaddr= is_secs ? 0 : encl_page->addr;
 	pginfo.secs   = (unsigned long)secs_ptr;
 
-	ret = __eldu((unsigned long)&pginfo,
-		     	 (unsigned long)epc_ptr,      //EPC目标虚拟地址
+	ret = __eldu((unsigned long)&pginfo,      //非EPC外的区域 虚拟地址
+		     	 (unsigned long)epc_ptr,      //EPC虚拟地址
 		     	 (unsigned long)va_ptr +encl_page->va_offset);
 	if (ret) {
 		sgx_err(encl, "ELDU returned %d\n", ret);
@@ -344,7 +344,7 @@ static struct sgx_encl_page *sgx_do_fault(struct vm_area_struct *vma,
 	list_add_tail(&entry->epc_page->list, &encl->load_list);
 	rc = sgx_vm_insert_pfn(vma, entry->addr, entry->epc_page->pa);
 
-        if (rc != VM_FAULT_NOPAGE) {
+    if (rc != VM_FAULT_NOPAGE) {
 		/* Kill the enclave if vm_insert_pfn fails; failure only occurs
 		 * if there is a driver bug or an unrecoverable issue, e.g. OOM.
 		 */

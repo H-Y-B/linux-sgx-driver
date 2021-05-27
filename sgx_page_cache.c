@@ -419,6 +419,19 @@ static int ksgxswapd(void *p)
 	return 0;
 }
 
+
+
+
+
+
+
+
+
+
+
+
+
+//驱动初始化时，调用
 int sgx_add_epc_bank(resource_size_t start, unsigned long size, int bank)
 {
 	unsigned long i;
@@ -484,6 +497,18 @@ void sgx_page_cache_teardown(void)
 	spin_unlock(&sgx_free_list_lock);
 }
 
+
+
+
+
+
+
+
+
+
+
+
+//申请、释放 EPC中的页
 static struct sgx_epc_page *sgx_alloc_page_fast(void)
 {
 	struct sgx_epc_page *entry = NULL;
@@ -491,8 +516,7 @@ static struct sgx_epc_page *sgx_alloc_page_fast(void)
 	spin_lock(&sgx_free_list_lock);
 
 	if (!list_empty(&sgx_free_list)) {
-		entry = list_first_entry(&sgx_free_list, struct sgx_epc_page,
-					 list);
+		entry = list_first_entry(&sgx_free_list, struct sgx_epc_page, list);
 		list_del(&entry->list);
 		sgx_nr_free_pages--;
 	}
@@ -576,15 +600,23 @@ void sgx_free_page(struct sgx_epc_page *entry, struct sgx_encl *encl)
 	spin_unlock(&sgx_free_list_lock);
 }
 
+
+
+
+
+
+
+
 void *sgx_get_page(struct sgx_epc_page *entry)
 {
 #ifdef CONFIG_X86_32
 	return kmap_atomic_pfn(PFN_DOWN(entry->pa));
 #else
-	int i = ((entry->pa) & ~PAGE_MASK);//页内偏移
+	int i = ((entry->pa) & ~PAGE_MASK);//页内偏移  =0
 
 	return (void *)(sgx_epc_banks[i].va + ((entry->pa & PAGE_MASK) - sgx_epc_banks[i].pa));
-	//									  ( 物理页号页号-)		
+	//									  ( 物理页号页号-                                 )		
+	//                 EPC的虚拟起始地址  +   页 offset 地址                         
 #endif
 }
 

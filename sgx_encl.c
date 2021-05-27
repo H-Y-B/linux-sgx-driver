@@ -176,8 +176,8 @@ void sgx_tgid_ctx_release(struct kref *ref)
 }
 
 static int sgx_measure(struct sgx_epc_page *secs_page,
-		       struct sgx_epc_page *epc_page,
-		       u16 mrmask)
+		       		   struct sgx_epc_page *epc_page,
+		               u16 mrmask)
 {
 	void *secs;
 	void *epc;
@@ -201,25 +201,26 @@ static int sgx_measure(struct sgx_epc_page *secs_page,
 	return ret;
 }
 
-static int sgx_eadd(struct sgx_epc_page *secs_page,
-		    struct sgx_epc_page *epc_page,
-		    unsigned long linaddr,
-		    struct sgx_secinfo *secinfo,
-		    struct page *backing)
+static int sgx_eadd(struct sgx_epc_page *secs_page,  // in pginfo
+		            struct sgx_epc_page *epc_page,   //
+		            unsigned long linaddr,           // in pginfo  enclave本身的虚拟空间地址
+		            struct sgx_secinfo *secinfo,     // in pginfo
+		            struct page *backing)            // in pginfo
 {
 	struct sgx_pageinfo pginfo;
 	void *epc_page_vaddr;
 	int ret;
 
-	pginfo.srcpge  = (unsigned long)kmap_atomic(backing);
-	pginfo.secs    = (unsigned long)sgx_get_page(secs_page);
+	pginfo.srcpge  = (unsigned long)kmap_atomic(backing);   //EPC外的虚拟地址
+	pginfo.secs    = (unsigned long)sgx_get_page(secs_page);//EPC内的虚拟地址 用来判断ELRANGE
+	epc_page_vaddr = sgx_get_page(epc_page);                //EPC内的虚拟地址
 
-	//EPC中的目的地址（）
-	epc_page_vaddr = sgx_get_page(epc_page);
+	pginfo.linaddr = linaddr;                //填写EPCM
+	pginfo.secinfo = (unsigned long)secinfo; //EPC外的虚拟地址 填写EPCM的权限和页类型
 
-	pginfo.linaddr = linaddr;
-	pginfo.secinfo = (unsigned long)secinfo;
-	ret = __eadd(&pginfo, epc_page_vaddr);
+
+	ret = __eadd(&pginfo,           //EPC外的虚拟地址 
+				  epc_page_vaddr);  //EPC内的虚拟地址
 
 	sgx_put_page(epc_page_vaddr);
 	sgx_put_page((void *)(unsigned long)pginfo.secs);
@@ -229,7 +230,7 @@ static int sgx_eadd(struct sgx_epc_page *secs_page,
 }
 
 static bool sgx_process_add_page_req(struct sgx_add_page_req *req,
-				     struct sgx_epc_page *epc_page)
+				     				 struct sgx_epc_page *epc_page)
 {
 	struct page *backing;
 	struct sgx_encl_page *encl_page = req->encl_page;
@@ -254,18 +255,18 @@ static bool sgx_process_add_page_req(struct sgx_add_page_req *req,
 		return false;
 	}
 
-	//                              虚拟地址       物理地址
-        ret = sgx_vm_insert_pfn(vma, encl_page->addr, epc_page->pa);
-        if (ret != VM_FAULT_NOPAGE) {
+	//                              虚拟地址       真实物理地址
+    ret = sgx_vm_insert_pfn(vma, encl_page->addr, epc_page->pa);
+    if (ret != VM_FAULT_NOPAGE) {
 		sgx_put_backing(backing, 0);
 		return false;
 	}
 
 	ret = sgx_eadd(encl->secs.epc_page,  //
-				   epc_page,             //
-				   encl_page->addr,      //
+				   epc_page,             //EPC中的目的地址
+				   encl_page->addr,      //enclave虚拟空间中的地址
 		           &req->secinfo, 
-				   backing);
+				   backing);             //EPC外的虚拟地址
 
 	sgx_put_backing(backing, 0);
 	if (ret) {
@@ -450,7 +451,7 @@ static const struct mmu_notifier_ops sgx_mmu_notifier_ops = {
 
 int sgx_init_page(struct sgx_encl *encl, 
 			      struct sgx_encl_page *entry,
-		  		  unsigned long addr, 
+		  		  unsigned long addr,          //enclave虚拟空间中的地址 
 				  unsigned int alloc_flags,
 		          struct sgx_epc_page **va_src, 
 				  bool already_locked)
@@ -472,10 +473,11 @@ int sgx_init_page(struct sgx_encl *encl,
 		if (!va_page)
 			return -ENOMEM;
 
+		//有源页，直接赋值
 		if (va_src) {
 			epc_page = *va_src;
 			*va_src = NULL;
-		} else {
+		} else {//没有，申请
 			epc_page = sgx_alloc_page(alloc_flags);
 			if (IS_ERR(epc_page)) {
 				kfree(va_page);
@@ -483,7 +485,8 @@ int sgx_init_page(struct sgx_encl *encl,
 			}
 		}
 
-		vaddr = sgx_get_page(epc_page);
+
+		vaddr = sgx_get_page(epc_page);//内核空间中EPC中的地址
 		if (!vaddr) {
 			sgx_warn(encl, "kmap of a new VA page failed %d\n",
 				 ret);
@@ -491,9 +494,9 @@ int sgx_init_page(struct sgx_encl *encl,
 			kfree(va_page);
 			return -EFAULT;
 		}
-
 		ret = __epa(vaddr);
 		sgx_put_page(vaddr);
+
 
 		if (ret) {
 			sgx_warn(encl, "EPA returned %d\n", ret);
@@ -514,9 +517,9 @@ int sgx_init_page(struct sgx_encl *encl,
 			mutex_unlock(&encl->lock);
 	}//end if
 
-	entry->va_page = va_page;
+	entry->va_page   = va_page;
 	entry->va_offset = va_offset;
-	entry->addr = addr;
+	entry->addr      = addr;
 
 	return 0;
 }
@@ -787,8 +790,8 @@ static int sgx_validate_tcs(struct sgx_encl *encl, struct sgx_tcs *tcs)
 
 static int __sgx_encl_add_page(struct sgx_encl *encl,
 			       struct sgx_encl_page *encl_page,
-			       unsigned long addr,
-			       void *data,
+			       unsigned long addr,  //enclave虚拟空间中的地址
+			       void *data,          //enclave 页数据
 			       struct sgx_secinfo *secinfo,
 			       unsigned int mrmask)
 {
@@ -844,7 +847,7 @@ static int __sgx_encl_add_page(struct sgx_encl *encl,
 	}
 
 	backing_ptr = kmap(backing);
-	memcpy(backing_ptr, data, PAGE_SIZE);
+	memcpy(backing_ptr, data, PAGE_SIZE);//enclave 页数据
 	kunmap(backing);
 
 	if (page_type == SGX_SECINFO_TCS)
@@ -852,9 +855,9 @@ static int __sgx_encl_add_page(struct sgx_encl *encl,
 
 	memcpy(&req->secinfo, secinfo, sizeof(*secinfo));
 
-	req->encl = encl;
+	req->encl 	   = encl;
 	req->encl_page = encl_page;
-	req->mrmask = mrmask;
+	req->mrmask    = mrmask;
 	empty = list_empty(&encl->add_page_reqs);
 	kref_get(&encl->refcount);
 	list_add_tail(&req->list, &encl->add_page_reqs);
@@ -901,7 +904,12 @@ int sgx_encl_add_page(struct sgx_encl *encl,
 	if (!page)
 		return -ENOMEM;
 
-	ret = __sgx_encl_add_page(encl, page, addr, data, secinfo, mrmask);
+	ret = __sgx_encl_add_page(encl, 
+							  page, 
+							  addr,   //enclave虚拟空间中的地址 
+							  data,   //enclave 页数据
+							  secinfo, 
+							  mrmask);
 
 	if (ret)
 		kfree(page);
