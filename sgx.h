@@ -178,7 +178,7 @@ struct sgx_encl {
 	unsigned long base;
 	unsigned long size;
 	unsigned long ssaframesize;
-	struct list_head va_pages;
+	struct list_head va_pages;  //版本数组（VA） 页 链表
 	struct radix_tree_root page_tree;
 	struct list_head add_page_reqs;
 	struct work_struct add_page_work;//内核工作队列

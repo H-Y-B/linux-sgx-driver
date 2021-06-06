@@ -185,6 +185,8 @@ int sgx_eldu(struct sgx_encl *encl,
 
 	pcmd_offset = ((encl_page->addr >> PAGE_SHIFT) & 31) * 128;
 
+
+
 	backing = sgx_get_backing(encl, encl_page, false);
 	if (IS_ERR(backing)) {
 		ret = PTR_ERR(backing);
@@ -192,7 +194,6 @@ int sgx_eldu(struct sgx_encl *encl,
 			 ret);
 		return ret;
 	}
-
 	pcmd = sgx_get_backing(encl, encl_page, true);
 	if (IS_ERR(pcmd)) {
 		ret = PTR_ERR(pcmd);
@@ -201,19 +202,21 @@ int sgx_eldu(struct sgx_encl *encl,
 		goto out;
 	}
 
-	if (!is_secs)
-		secs_ptr = sgx_get_page(encl->secs.epc_page);
 
-	epc_ptr = sgx_get_page(epc_page);
-	va_ptr  = sgx_get_page(encl_page->va_page->epc_page);
+
+	if (!is_secs)
+		secs_ptr = sgx_get_page(encl->secs.epc_page);      //EPC中的页在内核空间的虚拟地址
+	epc_ptr = sgx_get_page(epc_page);                      //EPC中的页在内核空间的虚拟地址
+	va_ptr  = sgx_get_page(encl_page->va_page->epc_page);  //EPC中的页在内核空间的虚拟地址
+
 	pginfo.srcpge = (unsigned long)kmap_atomic(backing);//非EPC中的页 源地址
 	pginfo.pcmd   = (unsigned long)kmap_atomic(pcmd) + pcmd_offset;
 	pginfo.linaddr= is_secs ? 0 : encl_page->addr;
 	pginfo.secs   = (unsigned long)secs_ptr;
 
 	ret = __eldu((unsigned long)&pginfo,      //非EPC外的区域 虚拟地址
-		     	 (unsigned long)epc_ptr,      //EPC虚拟地址
-		     	 (unsigned long)va_ptr +encl_page->va_offset);
+		     	 (unsigned long)epc_ptr,      //EPC中的页在内核空间的虚拟地址
+		     	 (unsigned long)va_ptr +encl_page->va_offset);//版本数组中的slot（EPC中的页在内核空间的虚拟地址）
 	if (ret) {
 		sgx_err(encl, "ELDU returned %d\n", ret);
 		ret = -EFAULT;
@@ -223,9 +226,9 @@ int sgx_eldu(struct sgx_encl *encl,
 	kunmap_atomic((void *)(unsigned long)pginfo.srcpge);
 	sgx_put_page(va_ptr);
 	sgx_put_page(epc_ptr);
-
 	if (!is_secs)
 		sgx_put_page(secs_ptr);
+
 
 	sgx_put_backing(pcmd, false);
 
@@ -237,7 +240,7 @@ out:
 static struct sgx_encl_page *sgx_do_fault(struct vm_area_struct *vma,
 					  unsigned long addr,
 					  unsigned int flags,
-				          struct vm_fault *vmf)
+				      struct vm_fault *vmf)
 {
 	struct sgx_encl *encl = vma->vm_private_data;
 	struct sgx_encl_page *entry;
@@ -294,7 +297,7 @@ static struct sgx_encl_page *sgx_do_fault(struct vm_area_struct *vma,
 		goto out;
 	}
 
-	epc_page = sgx_alloc_page(SGX_ALLOC_ATOMIC);
+	epc_page = sgx_alloc_page(SGX_ALLOC_ATOMIC);//返回EPC中空闲的页
 	if (IS_ERR(epc_page)) {
 		rc = PTR_ERR(epc_page);
 		epc_page = NULL;
@@ -303,14 +306,14 @@ static struct sgx_encl_page *sgx_do_fault(struct vm_area_struct *vma,
 
 	/* If SECS is evicted then reload it first */
 	if (encl->flags & SGX_ENCL_SECS_EVICTED) {
-		secs_epc_page = sgx_alloc_page(SGX_ALLOC_ATOMIC);
+		secs_epc_page = sgx_alloc_page(SGX_ALLOC_ATOMIC);//返回EPC中空闲的页
 		if (IS_ERR(secs_epc_page)) {
 			rc = PTR_ERR(secs_epc_page);
 			secs_epc_page = NULL;
 			goto out;
 		}
 
-		rc = sgx_eldu(encl, &encl->secs, secs_epc_page, true);
+		rc = sgx_eldu(encl, &encl->secs, secs_epc_page, true);//加载页
 		if (rc)
 			goto out;
 
@@ -385,7 +388,7 @@ void sgx_eblock(struct sgx_encl *encl, struct sgx_epc_page *epc_page)
 	void *vaddr;
 	int ret;
 
-	vaddr = sgx_get_page(epc_page);
+	vaddr = sgx_get_page(epc_page);//内核空间中EPC中页的虚拟地址
 	ret = __eblock((unsigned long)vaddr);
 	sgx_put_page(vaddr);
 
@@ -405,7 +408,7 @@ void sgx_etrack(struct sgx_encl *encl, unsigned int epoch)
 	if (epoch < encl->shadow_epoch)
 		return;
 
-	epc = sgx_get_page(encl->secs.epc_page);
+	epc = sgx_get_page(encl->secs.epc_page);//内核空间中EPC中页的虚拟地址
 	ret = __etrack(epc);
 	sgx_put_page(epc);
 	encl->shadow_epoch++;

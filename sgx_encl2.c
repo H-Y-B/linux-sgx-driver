@@ -100,12 +100,12 @@ struct sgx_encl_page *sgx_encl_augment(struct vm_area_struct *vma,
 
 	/* Note: Invoking function holds the encl->lock */
 
-	epc_page = sgx_alloc_page(SGX_ALLOC_ATOMIC);
+	epc_page = sgx_alloc_page(SGX_ALLOC_ATOMIC);//返回EPC中空闲的页
 	if (IS_ERR(epc_page)) {
 		return ERR_PTR(PTR_ERR(epc_page));
 	}
 
-	va_page = sgx_alloc_page(SGX_ALLOC_ATOMIC);
+	va_page = sgx_alloc_page(SGX_ALLOC_ATOMIC);//返回EPC中空闲的页
 	if (IS_ERR(va_page)) {
 		sgx_free_page(epc_page, encl);
 		return ERR_PTR(PTR_ERR(va_page));
@@ -129,6 +129,8 @@ struct sgx_encl_page *sgx_encl_augment(struct vm_area_struct *vma,
 		goto out;
 	*/
 
+
+	//初始化第二个参数sgx_encl结构体 中的   enclave虚拟空间的地址  和 版本数组
 	/* Start the augmenting process */
 	ret = sgx_init_page(encl, encl_page, addr, 0, &va_page, true);
 	if (ret)
@@ -137,14 +139,14 @@ struct sgx_encl_page *sgx_encl_augment(struct vm_area_struct *vma,
 	/* If SECS is evicted then reload it first */
 	/* Same steps as in sgx_do_fault */
 	if (encl->flags & SGX_ENCL_SECS_EVICTED) {
-		secs_epc_page = sgx_alloc_page(SGX_ALLOC_ATOMIC);
+		secs_epc_page = sgx_alloc_page(SGX_ALLOC_ATOMIC);//返回EPC中空闲的页
 		if (IS_ERR(secs_epc_page)) {
 			ret = PTR_ERR(secs_epc_page);
 			secs_epc_page = NULL;
 			goto out;
 		}
 
-		ret = sgx_eldu(encl, &encl->secs, secs_epc_page, true);
+		ret = sgx_eldu(encl, &encl->secs, secs_epc_page, true);//加载页
 		if (ret)
 			goto out;
 
@@ -155,8 +157,8 @@ struct sgx_encl_page *sgx_encl_augment(struct vm_area_struct *vma,
 		secs_epc_page = NULL;
 	}
 
-	secs_va = sgx_get_page(encl->secs.epc_page);
-	epc_va = sgx_get_page(epc_page);
+	secs_va = sgx_get_page(encl->secs.epc_page);//内核空间中EPC中页的虚拟地址
+	epc_va = sgx_get_page(epc_page);            //内核空间中EPC中页的虚拟地址
 
 	pginfo.srcpge = 0;
 	pginfo.secinfo = 0;
@@ -225,7 +227,8 @@ out:
 }
 
 static int isolate_range(struct sgx_encl *encl,
-			 struct sgx_range *rg, struct list_head *list)
+			 			 struct sgx_range *rg, 
+						 struct list_head *list)
 {
 	unsigned long address, end;
 	struct sgx_encl_page *encl_page;
@@ -287,7 +290,8 @@ static int isolate_range(struct sgx_encl *encl,
 }
 
 static int __modify_range(struct sgx_encl *encl,
-			  struct sgx_range *rg, struct sgx_secinfo *secinfo)
+			  			  struct sgx_range *rg, 
+						  struct sgx_secinfo *secinfo)
 {
 	struct sgx_encl_page *encl_page;
 	struct sgx_epc_page *epc_page, *tmp;
@@ -314,23 +318,27 @@ static int __modify_range(struct sgx_encl *encl,
 			ret = -EINVAL;
 			continue;
 		}
+
+
+
 		mutex_lock(&encl->lock);
-		epc_va = sgx_get_page(epc_page);
+		epc_va = sgx_get_page(epc_page);//内核空间中EPC中页的虚拟地址
 		status = SGX_LOCKFAIL;
 		cnt = 0;
 		while (SGX_LOCKFAIL == status && cnt < SGX_EDMM_SPIN_COUNT) {
 			if (emodt) {
-				status = __emodt(secinfo, epc_va);
+				status = __emodt(secinfo, epc_va);//change the Type of an EPC page
 				if (!status)
 					encl_page->flags |= SGX_ENCL_PAGE_TCS;
 			} else
-				status = __emodpr(secinfo, epc_va);
+				status = __emodpr(secinfo, epc_va);//restrict the permissions of an EPC page
 			cnt++;
 		}
-
 		epoch = encl->shadow_epoch;
 		sgx_put_page(epc_va);
 		mutex_unlock(&encl->lock);
+
+
 
 		if (status) {
 			sgx_err(encl, "sgx: Page at address=0x%lx \
@@ -351,7 +359,7 @@ static int __modify_range(struct sgx_encl *encl,
 	smp_call_function(sgx_ipi_cb, NULL, 1);
 
 out:
-	if (!list_empty(&list)) {
+	if (!list_empty(&list)) {//希望list为空
 		mutex_lock(&encl->lock);
 		list_splice(&list, &encl->load_list);
 		mutex_unlock(&encl->lock);
@@ -398,9 +406,9 @@ long modify_range(struct sgx_range *rg, unsigned long flags)
 	 * may empty EPC load lists and stall SGX.
 	 */
 	for (_rg.start_addr = rg->start_addr;
-	     _rg.start_addr < end;
-	     rg->nr_pages -= SGX_NR_MOD_CHUNK_PAGES,
-	     _rg.start_addr += SGX_NR_MOD_CHUNK_PAGES*PAGE_SIZE) {
+		 _rg.start_addr < end;
+	     rg->nr_pages -= SGX_NR_MOD_CHUNK_PAGES, _rg.start_addr += SGX_NR_MOD_CHUNK_PAGES*PAGE_SIZE) 
+	{
 		_rg.nr_pages = rg->nr_pages > 0x10 ? 0x10 : rg->nr_pages;
 		ret = __modify_range(encl, &_rg, &secinfo);
 		if (ret)
@@ -427,6 +435,7 @@ int remove_page(struct sgx_encl *encl, unsigned long address, bool trim)
 	if (IS_ERR(encl_page))
 		return (PTR_ERR(encl_page) == -EBUSY) ? -EBUSY : -EINVAL;
 
+	//执行剪裁页面（trimming a page）的操作,需要保证 页类型为 PT_TRIM
 	if (trim && !(encl_page->flags & SGX_ENCL_PAGE_TRIM)) {
 		encl_page->flags &= ~SGX_ENCL_PAGE_RESERVED;
 		return -EINVAL;

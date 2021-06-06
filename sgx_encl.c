@@ -189,8 +189,8 @@ static int sgx_measure(struct sgx_epc_page *secs_page,
 		if (!(j & mrmask))
 			continue;
 
-		secs = sgx_get_page(secs_page);
-		epc  = sgx_get_page( epc_page);
+		secs = sgx_get_page(secs_page);//内核空间中EPC中页的虚拟地址
+		epc  = sgx_get_page( epc_page);//内核空间中EPC中页的虚拟地址
 
 		ret = __eextend(secs, (void *)((unsigned long)epc + i));
 
@@ -212,8 +212,8 @@ static int sgx_eadd(struct sgx_epc_page *secs_page,  // in pginfo
 	int ret;
 
 	pginfo.srcpge  = (unsigned long)kmap_atomic(backing);   //EPC外的虚拟地址
-	pginfo.secs    = (unsigned long)sgx_get_page(secs_page);//EPC内的虚拟地址 用来判断ELRANGE
-	epc_page_vaddr = sgx_get_page(epc_page);                //EPC内的虚拟地址
+	pginfo.secs    = (unsigned long)sgx_get_page(secs_page);//内核空间中EPC中页的虚拟地址 用来判断ELRANGE
+	epc_page_vaddr = sgx_get_page(epc_page);                //内核空间中EPC中页的虚拟地址
 
 	pginfo.linaddr = linaddr;                //填写EPCM
 	pginfo.secinfo = (unsigned long)secinfo; //EPC外的虚拟地址 填写EPCM的权限和页类型
@@ -320,7 +320,7 @@ static void sgx_add_page_worker(struct work_struct *work)
 		if (skip_rest)
 			goto next;
 
-		epc_page = sgx_alloc_page(0);
+		epc_page = sgx_alloc_page(0);//返回EPC中空闲的页
 		if (IS_ERR(epc_page)) {
 			skip_rest = true;
 			goto next;
@@ -449,11 +449,15 @@ static const struct mmu_notifier_ops sgx_mmu_notifier_ops = {
 	.release	= sgx_mmu_notifier_release,
 };
 
-int sgx_init_page(struct sgx_encl *encl, 
-			      struct sgx_encl_page *entry,
+
+//初始化第二个参数sgx_encl结构体
+int sgx_init_page(struct sgx_encl *encl,       //enclave结构体
+			      struct sgx_encl_page *entry, //enclave页
 		  		  unsigned long addr,          //enclave虚拟空间中的地址 
-				  unsigned int alloc_flags,
-		          struct sgx_epc_page **va_src, 
+
+				  unsigned int alloc_flags,    //新创建版本数组标志
+		          struct sgx_epc_page **va_src,//已有版本数组
+				  
 				  bool already_locked)
 {
 	struct sgx_va_page *va_page;
@@ -462,12 +466,16 @@ int sgx_init_page(struct sgx_encl *encl,
 	void *vaddr;
 	int ret = 0;
 
+
+	//遍历enclave的版本数组（VA）页表链，申请一个slot
 	list_for_each_entry(va_page, &encl->va_pages, list) {
 		va_offset = sgx_alloc_va_slot(va_page);
 		if (va_offset < PAGE_SIZE)
 			break;
 	}
 
+	//enclave的版本数组（VA）页表链 没有空闲的slot
+	//创建新的页，链接到  页表链上
 	if (va_offset == PAGE_SIZE) {
 		va_page = kzalloc(sizeof(*va_page), GFP_KERNEL);
 		if (!va_page)
@@ -478,7 +486,7 @@ int sgx_init_page(struct sgx_encl *encl,
 			epc_page = *va_src;
 			*va_src = NULL;
 		} else {//没有，申请
-			epc_page = sgx_alloc_page(alloc_flags);
+			epc_page = sgx_alloc_page(alloc_flags);//返回EPC中空闲的页
 			if (IS_ERR(epc_page)) {
 				kfree(va_page);
 				return PTR_ERR(epc_page);
@@ -486,7 +494,7 @@ int sgx_init_page(struct sgx_encl *encl,
 		}
 
 
-		vaddr = sgx_get_page(epc_page);//内核空间中EPC中的地址
+		vaddr = sgx_get_page(epc_page);//内核空间中EPC中页的虚拟地址
 		if (!vaddr) {
 			sgx_warn(encl, "kmap of a new VA page failed %d\n",
 				 ret);
@@ -512,7 +520,7 @@ int sgx_init_page(struct sgx_encl *encl,
 
 		if (!already_locked)
 			mutex_lock(&encl->lock);
-		list_add(&va_page->list, &encl->va_pages);
+		list_add(&va_page->list, &encl->va_pages);//将新申请的页，链接到  版本数组页表链上
 		if (!already_locked)
 			mutex_unlock(&encl->lock);
 	}//end if
@@ -613,7 +621,9 @@ int sgx_encl_create(struct sgx_secs *secs)
 	if (IS_ERR(encl))
 		return PTR_ERR(encl);
 
+
 	secs_epc = sgx_alloc_page(0);//从sgx_free_list链表 中 找出一项
+								 //返回EPC中空闲的页
 	if (IS_ERR(secs_epc)) {
 		ret = PTR_ERR(secs_epc);
 		goto out;
@@ -625,20 +635,23 @@ int sgx_encl_create(struct sgx_secs *secs)
 	if (ret)
 		goto out;
 
+	//初始化第二个参数sgx_encl结构体 中的   enclave虚拟空间的地址  和 版本数组
 	ret = sgx_init_page(encl, &encl->secs, encl->base + encl->size, 0, NULL, false);
 	if (ret)
 		goto out;
 
-	secs_vaddr = sgx_get_page(secs_epc);
 
+
+	secs_vaddr = sgx_get_page(secs_epc);//epc页在内核空间的虚拟地址
 	pginfo.srcpge = (unsigned long)secs;
 	pginfo.linaddr = 0;
 	pginfo.secinfo = (unsigned long)&secinfo;
 	pginfo.secs = 0;
 	memset(&secinfo, 0, sizeof(secinfo));
 	ret = __ecreate((void *)&pginfo, secs_vaddr);
-
 	sgx_put_page(secs_vaddr);
+
+
 
 	if (ret) {
 		sgx_dbg(encl, "ECREATE returned %ld\n", ret);
@@ -658,6 +671,10 @@ int sgx_encl_create(struct sgx_secs *secs)
 		goto out;
 	}
 
+
+
+
+//这里，将sgx_encl结构体，放入
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 8, 0))
 	mmap_read_lock(current->mm);
 #else
@@ -669,21 +686,20 @@ int sgx_encl_create(struct sgx_secs *secs)
 			ret = -EINVAL;
 		goto out_locked;
 	}
-
-	if (vma->vm_start != secs->base ||
-	    vma->vm_end != (secs->base + secs->size)
+	if (vma->vm_start != secs->base ||  vma->vm_end != (secs->base + secs->size)
 	    /* vma->vm_pgoff != 0 */) {
 		ret = -EINVAL;
 		goto out_locked;
 	}
-
 	vma->vm_private_data = encl;
-
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 8, 0))
 	mmap_read_unlock(current->mm);
 #else
 	up_read(&current->mm->mmap_sem);
 #endif
+
+
+
 
 	mutex_lock(&sgx_tgid_ctx_mutex);
 	list_add_tail(&encl->encl_list, &encl->tgid_ctx->encl_list);
@@ -811,6 +827,7 @@ static int __sgx_encl_add_page(struct sgx_encl *encl,
 			return ret;
 	}
 
+	//初始化第二个参数sgx_encl结构体 中的   enclave虚拟空间的地址  和 版本数组
 	ret = sgx_init_page(encl, encl_page, addr, 0, NULL, false);
 	if (ret)
 		return ret;
@@ -839,8 +856,7 @@ static int __sgx_encl_add_page(struct sgx_encl *encl,
 		goto out;
 	}
 
-	ret = radix_tree_insert(&encl->page_tree, encl_page->addr >> PAGE_SHIFT,
-				encl_page);
+	ret = radix_tree_insert(&encl->page_tree, encl_page->addr >> PAGE_SHIFT, encl_page);
 	if (ret) {
 		sgx_put_backing(backing, false /* write */);
 		goto out;
@@ -925,7 +941,7 @@ static int sgx_einit(struct sgx_encl *encl,
 	void *secs_va;
 	int ret;
 
-	secs_va = sgx_get_page(secs_epc);
+	secs_va = sgx_get_page(secs_epc);//内核空间中EPC中页的虚拟地址
 	ret = __einit(sigstruct, token, secs_va);
 	sgx_put_page(secs_va);
 

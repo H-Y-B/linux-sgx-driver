@@ -171,7 +171,7 @@ static inline int sgx_vma_access_word(struct sgx_encl *encl,
 			return -ECANCELED;
 
 		if (align || (cnt != sizeof(unsigned long))) {
-			vaddr = sgx_get_page(encl_page->epc_page);
+			vaddr = sgx_get_page(encl_page->epc_page);//内核空间中EPC中页的虚拟地址
 			ret = __edbgrd((void *)((unsigned long)vaddr + offset),
 				       (unsigned long *)data);
 			sgx_put_page(vaddr);
@@ -182,7 +182,7 @@ static inline int sgx_vma_access_word(struct sgx_encl *encl,
 		}
 
 		memcpy(data + align, buf + i, cnt);
-		vaddr = sgx_get_page(encl_page->epc_page);
+		vaddr = sgx_get_page(encl_page->epc_page);//内核空间中EPC中页的虚拟地址
 		ret = __edbgwr((void *)((unsigned long)vaddr + offset),
 			       (unsigned long *)data);
 		sgx_put_page(vaddr);
@@ -195,7 +195,7 @@ static inline int sgx_vma_access_word(struct sgx_encl *encl,
 		    (offset + (len - i)) > 72)
 			return -ECANCELED;
 
-		vaddr = sgx_get_page(encl_page->epc_page);
+		vaddr = sgx_get_page(encl_page->epc_page);//内核空间中EPC中页的虚拟地址
 		ret = __edbgrd((void *)((unsigned long)vaddr + offset),
 			       (unsigned long *)data);
 		sgx_put_page(vaddr);

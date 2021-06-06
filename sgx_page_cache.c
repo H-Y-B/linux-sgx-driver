@@ -269,8 +269,8 @@ static int __sgx_ewb(struct sgx_encl *encl,
 		goto out;
 	}
 
-	epc = sgx_get_page(encl_page->epc_page);
-	va = sgx_get_page(encl_page->va_page->epc_page);
+	epc = sgx_get_page(encl_page->epc_page);        //内核空间中EPC中页的虚拟地址
+	va = sgx_get_page(encl_page->va_page->epc_page);//内核空间中EPC中页的虚拟地址
 
 	pginfo.srcpge = (unsigned long)kmap_atomic(backing);
 	pginfo.pcmd = (unsigned long)kmap_atomic(pcmd) + pcmd_offset;
@@ -405,11 +405,13 @@ static int ksgxswapd(void *p)
 		if (try_to_freeze())
 			continue;
 
-		wait_event_freezable(ksgxswapd_waitq,
-				     		 kthread_should_stop() || sgx_nr_free_pages < sgx_nr_high_pages
+		//睡眠
+		wait_event_freezable(
+							 ksgxswapd_waitq,
+				     		 kthread_should_stop() || sgx_nr_free_pages < sgx_nr_high_pages  
+							 //等待队列进入休眠条件condition,只有第二个参数为假时才能进入休眠
 							);
-		/*
-		*/
+
 
 		if (sgx_nr_free_pages < sgx_nr_high_pages)
 			sgx_swap_pages(SGX_NR_SWAP_CLUSTER_MAX);
@@ -442,7 +444,7 @@ int sgx_add_epc_bank(resource_size_t start, unsigned long size, int bank)
 		new_epc_page = kzalloc(sizeof(*new_epc_page), GFP_KERNEL);
 		if (!new_epc_page)
 			goto err_freelist;
-		new_epc_page->pa = (start + i) | bank;
+		new_epc_page->pa = (start + i) | bank;//物理地址
 
 		spin_lock(&sgx_free_list_lock);
 		list_add_tail(&new_epc_page->list, &sgx_free_list);
@@ -463,7 +465,12 @@ err_freelist://发生错误，把已经申请到的资源释放掉
 	return -ENOMEM;
 }
 
-int sgx_page_cache_init(void)
+
+
+
+
+//用户内核线程ksgxswapd 创建运行和销毁
+int sgx_page_cache_init(void)//创建并启动内核线程ksgxswapd
 {
 	struct task_struct *tmp;
 
@@ -478,7 +485,7 @@ int sgx_page_cache_init(void)
 	return PTR_ERR_OR_ZERO(tmp);
 }
 
-void sgx_page_cache_teardown(void)
+void sgx_page_cache_teardown(void)//关闭内核线程ksgxswapd
 {
 	struct sgx_epc_page *entry;
 	struct list_head *parser, *temp;
@@ -548,8 +555,8 @@ struct sgx_epc_page *sgx_alloc_page(unsigned int flags)
 			break;
 
 		/* We need at minimum two pages for the #PF handler. */
-		if (atomic_read(&sgx_va_pages_cnt) >
-		    (sgx_nr_total_epc_pages - 2))
+		if (atomic_read(&sgx_va_pages_cnt) > (sgx_nr_total_epc_pages - 2))
+											  //EPC中所有页的个数
 			return ERR_PTR(-ENOMEM);
 
 		if (flags & SGX_ALLOC_ATOMIC) {
@@ -566,6 +573,7 @@ struct sgx_epc_page *sgx_alloc_page(unsigned int flags)
 		schedule();
 	}
 
+	//唤醒
 	if (sgx_nr_free_pages < sgx_nr_low_pages)
 		wake_up(&ksgxswapd_waitq);
 
@@ -587,7 +595,7 @@ void sgx_free_page(struct sgx_epc_page *entry, struct sgx_encl *encl)
 	void *epc;
 	int ret;
 
-	epc = sgx_get_page(entry);
+	epc = sgx_get_page(entry);//内核空间中EPC中页的虚拟地址
 	ret = __eremove(epc);
 	sgx_put_page(epc);
 

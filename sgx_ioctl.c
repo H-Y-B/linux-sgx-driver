@@ -273,8 +273,7 @@ out:
 long sgx_ioc_page_modpr(struct file *filep, unsigned int cmd,
 			unsigned long arg)
 {
-	struct sgx_modification_param *p =
-		(struct sgx_modification_param *) arg;
+	struct sgx_modification_param *p = (struct sgx_modification_param *) arg;
 
 	/*
 	 * Only RWX flags in mask are allowed
@@ -282,9 +281,9 @@ long sgx_ioc_page_modpr(struct file *filep, unsigned int cmd,
 	 */
 	if (p->flags & ~(SGX_SECINFO_R | SGX_SECINFO_W | SGX_SECINFO_X))
 		return -EINVAL;
-	if (!(p->flags & SGX_SECINFO_R) &&
-	    (p->flags & SGX_SECINFO_W))
+	if (!(p->flags & SGX_SECINFO_R) && (p->flags & SGX_SECINFO_W))
 		return -EINVAL;
+
 	return modify_range(&p->range, p->flags);
 }
 
@@ -294,8 +293,9 @@ long sgx_ioc_page_modpr(struct file *filep, unsigned int cmd,
  * eaccept needs to be invoked after return.
  * @arg range address of pages to be switched
  */
-long sgx_ioc_page_to_tcs(struct file *filep, unsigned int cmd,
-			 unsigned long arg)
+long sgx_ioc_page_to_tcs(struct file *filep, 
+                         unsigned int cmd,
+			 			 unsigned long arg)
 {
 	return modify_range((struct sgx_range *)arg, SGX_SECINFO_TCS);
 }
@@ -306,8 +306,9 @@ long sgx_ioc_page_to_tcs(struct file *filep, unsigned int cmd,
  * eaccept has been invoked
  * @arg range address of pages to be trimmed
  */
-long sgx_ioc_trim_page(struct file *filep, unsigned int cmd,
-		       unsigned long arg)
+long sgx_ioc_trim_page(struct file *filep, 
+				       unsigned int cmd,
+		               unsigned long arg)
 {
 	return modify_range((struct sgx_range *)arg, SGX_SECINFO_TRIM);
 }
@@ -318,8 +319,9 @@ long sgx_ioc_trim_page(struct file *filep, unsigned int cmd,
  * should have PT_TRIM page type and should have been eaccepted priorly
  * @arg range address of pages
  */
-long sgx_ioc_page_notify_accept(struct file *filep, unsigned int cmd,
-				unsigned long arg)
+long sgx_ioc_page_notify_accept(struct file *filep, 
+							    unsigned int cmd,
+							    unsigned long arg)
 {
 	struct sgx_range *rg;
 	unsigned long address, end;
