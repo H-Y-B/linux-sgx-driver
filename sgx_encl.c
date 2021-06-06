@@ -255,7 +255,7 @@ static bool sgx_process_add_page_req(struct sgx_add_page_req *req,
 		return false;
 	}
 
-	//                              虚拟地址       真实物理地址
+	//                              虚拟地址       EPC中页的物理地址
     ret = sgx_vm_insert_pfn(vma, encl_page->addr, epc_page->pa);
     if (ret != VM_FAULT_NOPAGE) {
 		sgx_put_backing(backing, 0);
@@ -310,12 +310,14 @@ static void sgx_add_page_worker(struct work_struct *work)
 		if (encl->flags & SGX_ENCL_DEAD)
 			skip_rest = true;
 
+
+		//从enclave中的请求队列中取出 一项  struct sgx_add_page_req *req;
 		mutex_lock(&encl->lock);
-		req = list_first_entry(&encl->add_page_reqs,
-				       struct sgx_add_page_req, list);
+		req = list_first_entry(&encl->add_page_reqs,struct sgx_add_page_req, list);
 		list_del(&req->list);
 		is_empty = list_empty(&encl->add_page_reqs);
 		mutex_unlock(&encl->lock);
+
 
 		if (skip_rest)
 			goto next;
@@ -583,7 +585,7 @@ static struct sgx_encl *sgx_encl_alloc(struct sgx_secs *secs)
 	INIT_LIST_HEAD(&encl->load_list);
 	INIT_LIST_HEAD(&encl->encl_list);
 	mutex_init(&encl->lock);
-	INIT_WORK(&encl->add_page_work, sgx_add_page_worker);
+	INIT_WORK(&encl->add_page_work, sgx_add_page_worker);//初始化一个工作项，并添加自己实现的函数
 
 	encl->mm           = current->mm;
 	encl->base         = secs->base;
@@ -874,12 +876,11 @@ static int __sgx_encl_add_page(struct sgx_encl *encl,
 	req->encl 	   = encl;
 	req->encl_page = encl_page;
 	req->mrmask    = mrmask;
-	empty = list_empty(&encl->add_page_reqs);
+	empty = list_empty(&encl->add_page_reqs);//enclave的请求队列 串联 工作项
 	kref_get(&encl->refcount);
 	list_add_tail(&req->list, &encl->add_page_reqs);
 	if (empty)
-		queue_work(sgx_add_page_wq, &encl->add_page_work);
-
+		queue_work(sgx_add_page_wq, &encl->add_page_work);//将自己的工作项添加到指定的工作队列去， 同时唤醒相应线程处理
 	sgx_put_backing(backing, true /* write */);
 
 	mutex_unlock(&encl->lock);
@@ -971,7 +972,7 @@ int sgx_encl_init(struct sgx_encl *encl,
 	int i;
 	int j;
 
-	flush_work(&encl->add_page_work);
+	flush_work(&encl->add_page_work);//等待work被执行完
 
 	mutex_lock(&encl->lock);
 

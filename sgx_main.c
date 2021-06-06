@@ -176,7 +176,7 @@ static int sgx_pm_suspend(struct device *dev)
 		list_for_each_entry(encl, &ctx->encl_list, encl_list) {
 			sgx_invalidate(encl, false);
 			encl->flags |= SGX_ENCL_SUSPEND;
-			flush_work(&encl->add_page_work);
+			flush_work(&encl->add_page_work);//等待work被执行完
 		}
 	}
 
