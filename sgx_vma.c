@@ -183,8 +183,7 @@ static inline int sgx_vma_access_word(struct sgx_encl *encl,
 
 		memcpy(data + align, buf + i, cnt);
 		vaddr = sgx_get_page(encl_page->epc_page);//内核空间中EPC中页的虚拟地址
-		ret = __edbgwr((void *)((unsigned long)vaddr + offset),
-			       (unsigned long *)data);
+		ret = __edbgwr((void *)((unsigned long)vaddr + offset), (unsigned long *)data);
 		sgx_put_page(vaddr);
 		if (ret) {
 			sgx_dbg(encl, "EDBGWR returned %d\n", ret);
@@ -196,8 +195,7 @@ static inline int sgx_vma_access_word(struct sgx_encl *encl,
 			return -ECANCELED;
 
 		vaddr = sgx_get_page(encl_page->epc_page);//内核空间中EPC中页的虚拟地址
-		ret = __edbgrd((void *)((unsigned long)vaddr + offset),
-			       (unsigned long *)data);
+		ret = __edbgrd((void *)((unsigned long)vaddr + offset),(unsigned long *)data);
 		sgx_put_page(vaddr);
 		if (ret) {
 			sgx_dbg(encl, "EDBGRD returned %d\n", ret);
@@ -210,8 +208,13 @@ static inline int sgx_vma_access_word(struct sgx_encl *encl,
 	return cnt;
 }
 
-static int sgx_vma_access(struct vm_area_struct *vma, unsigned long addr,
-			  void *buf, int len, int write)
+
+//debug调试下 读写EPC中的数据
+static int sgx_vma_access(struct vm_area_struct *vma, 
+						  unsigned long addr,
+			  			  void *buf, 
+						  int len, 
+						  int write)
 {
 	struct sgx_encl *encl = vma->vm_private_data;
 	struct sgx_encl_page *entry = NULL;
@@ -237,8 +240,7 @@ static int sgx_vma_access(struct vm_area_struct *vma, unsigned long addr,
 			if (entry)
 				entry->flags &= ~SGX_ENCL_PAGE_RESERVED;
 
-			entry = sgx_fault_page(vma, (addr + i) & PAGE_MASK,
-					       SGX_FAULT_RESERVE, NULL);
+			entry = sgx_fault_page(vma, (addr + i) & PAGE_MASK, SGX_FAULT_RESERVE, NULL);
 			if (IS_ERR(entry)) {
 				ret = PTR_ERR(entry);
 				entry = NULL;
@@ -249,8 +251,7 @@ static int sgx_vma_access(struct vm_area_struct *vma, unsigned long addr,
 		/* No locks are needed because used fields are immutable after
 		 * intialization.
 		 */
-		ret = sgx_vma_access_word(encl, addr, buf, len, write,
-					  entry, i);
+		ret = sgx_vma_access_word(encl, addr, buf, len, write, entry, i);
 		if (ret < 0)
 			break;
 	}
