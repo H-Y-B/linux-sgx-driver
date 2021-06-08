@@ -76,9 +76,13 @@ int sgx_init_page(struct sgx_encl *encl, struct sgx_encl_page *entry,
  *
  * Note: Invoking function must already hold the encl->lock
  */
+//this leaf function 
+//	zeroes a page of EPC memory,
+//	associates the EPC page with an SECS page residing in the EPC,
+//	stores the linear address and security attributes in the EPCM.
 struct sgx_encl_page *sgx_encl_augment(struct vm_area_struct *vma,
-				       unsigned long addr,
-				       bool write)
+				       			       unsigned long addr,
+				       				   bool write)
 {
 	struct sgx_pageinfo pginfo;
 	struct sgx_epc_page *epc_page, *va_page = NULL;
@@ -157,21 +161,20 @@ struct sgx_encl_page *sgx_encl_augment(struct vm_area_struct *vma,
 		secs_epc_page = NULL;
 	}
 
+
+
 	secs_va = sgx_get_page(encl->secs.epc_page);//内核空间中EPC中页的虚拟地址
 	epc_va = sgx_get_page(epc_page);            //内核空间中EPC中页的虚拟地址
-
 	pginfo.srcpge = 0;
 	pginfo.secinfo = 0;
-	pginfo.linaddr = addr;
+	pginfo.linaddr = addr; //enclave虚拟空间的地址
 	pginfo.secs = (unsigned long) secs_va;
-
 	ret = __eaug(&pginfo, epc_va);
 	if (ret) {
 		pr_err("sgx: eaug failure with ret=%d\n", ret);
 		goto out;
 	}
-
-        ret = sgx_vm_insert_pfn(vma, encl_page->addr, epc_page->pa);
+    ret = sgx_vm_insert_pfn(vma, encl_page->addr, epc_page->pa);
 	sgx_put_page(epc_va);
 	sgx_put_page(secs_va);
 	if (ret != VM_FAULT_NOPAGE) {
@@ -179,12 +182,14 @@ struct sgx_encl_page *sgx_encl_augment(struct vm_area_struct *vma,
 		goto out;
 	}
 
+
+
+
 	epc_page->encl_page = encl_page;
 	encl_page->epc_page = epc_page;
 	encl->secs_child_cnt++;
 
-	ret = radix_tree_insert(&encl->page_tree, encl_page->addr >> PAGE_SHIFT,
-			        encl_page);
+	ret = radix_tree_insert(&encl->page_tree, encl_page->addr >> PAGE_SHIFT, encl_page);
 	if (ret) {
 		pr_err("sgx: radix_tree_insert failed with ret=%d\n", ret);
 		goto out;
