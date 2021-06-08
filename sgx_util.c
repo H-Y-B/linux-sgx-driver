@@ -259,7 +259,8 @@ static struct sgx_encl_page *sgx_do_fault(struct vm_area_struct *vma,
 	mutex_lock(&encl->lock);
 
 	entry = radix_tree_lookup(&encl->page_tree, addr >> PAGE_SHIFT);
-	if (vmf && !entry) {
+	if (vmf && !entry) {//enclave地址空间的虚拟地址 不在  page_tree中，
+				        //说明 EPC中没有 给  enclave地址空间的虚拟地址  分配页
 		entry = sgx_encl_augment(vma, addr, write);
 		goto out;
 	}
@@ -284,8 +285,7 @@ static struct sgx_encl_page *sgx_do_fault(struct vm_area_struct *vma,
 	}
 
 	if (reserve && (entry->flags & SGX_ENCL_PAGE_RESERVED)) {
-		sgx_dbg(encl, "cannot fault, 0x%p is reserved\n",
-			(void *)entry->addr);
+		sgx_dbg(encl, "cannot fault, 0x%p is reserved\n",(void *)entry->addr);
 		rc = -EBUSY;
 		goto out;
 	}
